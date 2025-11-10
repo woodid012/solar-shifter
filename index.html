@@ -472,6 +472,77 @@
         .breakdown-item:last-child {
             border-bottom: none;
         }
+
+        .ai-recommendation {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-radius: 15px;
+            color: white;
+            display: none;
+        }
+
+        .ai-recommendation.show {
+            display: block;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .ai-recommendation h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ai-recommendation .content {
+            line-height: 1.7;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .ai-recommendation .roi-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .buy-now-btn {
+            display: inline-block;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            background: white;
+            color: #11998e;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+
+        .buy-now-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -506,14 +577,19 @@
                         </select>
                     </div>
 
-                    <div id="tariffInfo" class="tariff-info" style="display: none;"></div>
-
-                    <div class="form-group">
-                        <label for="hasSolar">Do you have solar panels?</label>
-                        <select id="hasSolar" required>
-                            <option value="yes">Yes - I have solar panels</option>
-                            <option value="no">No - I don't have solar panels</option>
-                        </select>
+                    <div id="tariffInfo" class="tariff-info" style="display: none;">
+                        <p><strong><span id="stateName"></span> Electricity Rates:</strong></p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                            <div>
+                                <label for="peakRate" style="font-size: 13px; color: #856404; display: block; margin-bottom: 5px;">Peak Rate (c/kWh)</label>
+                                <input type="number" id="peakRate" step="0.1" min="0" style="width: 100%; padding: 8px; border: 2px solid #ffc107; border-radius: 6px; font-size: 14px;">
+                            </div>
+                            <div>
+                                <label for="solarRate" style="font-size: 13px; color: #856404; display: block; margin-bottom: 5px;">Solar Hours Rate (c/kWh)</label>
+                                <input type="number" id="solarRate" step="0.1" min="0" style="width: 100%; padding: 8px; border: 2px solid #ffc107; border-radius: 6px; font-size: 14px;">
+                            </div>
+                        </div>
+                        <p style="font-size: 12px; margin-top: 8px; opacity: 0.8;">You can adjust these rates to match your electricity plan</p>
                     </div>
 
                     <!-- General Usage Tab -->
@@ -606,6 +682,19 @@
                         </div>
                     </div>
                     <div class="explanation" id="explanation"></div>
+                </div>
+
+                <div id="aiRecommendation" class="ai-recommendation">
+                    <h3>
+                        <span>🤖</span>
+                        <span>Your Personalized Recommendation</span>
+                    </h3>
+                    <div class="content" id="aiContent">
+                        <div class="loading-spinner"></div> Getting personalized recommendation...
+                    </div>
+                    <a href="#" class="buy-now-btn" onclick="alert('Product purchase coming soon! Email us at sales@solarshifter.com.au'); return false;">
+                        Buy Power Monitor - $149.99
+                    </a>
                 </div>
             </div>
 
@@ -941,30 +1030,60 @@
             const state = this.value;
             if (state && stateTariffs[state]) {
                 const tariff = stateTariffs[state];
-                const tariffInfo = document.getElementById('tariffInfo');
-                tariffInfo.innerHTML = `
-                    <p><strong>${tariff.name} Electricity Rates:</strong></p>
-                    <p>Peak rate: ${tariff.peak}c/kWh | Solar hours rate: ${tariff.solar}c/kWh | Solar feed-in: ${tariff.feedIn}c/kWh</p>
-                `;
-                tariffInfo.style.display = 'block';
+                document.getElementById('stateName').textContent = tariff.name;
+                document.getElementById('peakRate').value = tariff.peak;
+                document.getElementById('solarRate').value = tariff.solar;
+                document.getElementById('tariffInfo').style.display = 'block';
             }
         });
 
-        document.getElementById('calculatorForm').addEventListener('submit', function(e) {
+        async function getAIRecommendation(devices, savings, state) {
+            try {
+                const response = await fetch('/api/recommend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        devices: devices,
+                        savings: savings,
+                        state: stateTariffs[state]?.name || state
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get recommendation');
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('AI Recommendation Error:', error);
+                return null;
+            }
+        }
+
+        document.getElementById('calculatorForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const state = document.getElementById('state').value;
-            const hasSolar = document.getElementById('hasSolar').value;
+            const peakRate = parseFloat(document.getElementById('peakRate').value);
+            const solarRate = parseFloat(document.getElementById('solarRate').value);
 
-            if (!state || !stateTariffs[state]) {
+            if (!state) {
                 alert('Please select your state');
                 return;
             }
 
-            const tariff = stateTariffs[state];
+            if (!peakRate || !solarRate) {
+                alert('Please check your tariff rates');
+                return;
+            }
+
             let dailySavings;
             let explanation;
             let shiftableKwh;
+            let deviceList = [];
 
             if (currentTab === 'general') {
                 // General usage calculation
@@ -977,28 +1096,21 @@
                 }
 
                 shiftableKwh = dailyUsage * (shiftablePercentage / 100);
+                const savingsPerKwh = (peakRate - solarRate) / 100;
+                dailySavings = shiftableKwh * savingsPerKwh;
 
-                if (hasSolar === 'yes') {
-                    dailySavings = shiftableKwh * (tariff.peak / 100);
-                    explanation = `
-                        <strong>How we calculated your savings:</strong><br><br>
-                        You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
-                        With solar panels, instead of buying electricity at <strong>${tariff.peak}c/kWh</strong> during peak times,
-                        you're using your own solar power during the day, saving the full grid cost.<br><br>
-                        This means you save <strong>${(tariff.peak)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.
-                    `;
-                } else {
-                    const savingsPerKwh = (tariff.peak - tariff.solar) / 100;
-                    dailySavings = shiftableKwh * savingsPerKwh;
-                    explanation = `
-                        <strong>How we calculated your savings:</strong><br><br>
-                        You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
-                        Without solar panels, you benefit from lower electricity rates during solar hours
-                        (<strong>${tariff.solar}c/kWh</strong>) compared to peak times (<strong>${tariff.peak}c/kWh</strong>).<br><br>
-                        This means you save <strong>${(savingsPerKwh * 100).toFixed(0)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.<br><br>
-                        <em>Tip: Consider installing solar panels to maximize your savings even further!</em>
-                    `;
-                }
+                explanation = `
+                    <strong>How we calculated your savings:</strong><br><br>
+                    You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
+                    By using electricity during solar hours when rates are lower
+                    (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak), you save:<br><br>
+                    <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
+                `;
+
+                deviceList.push({
+                    name: 'General household usage',
+                    details: `${shiftableKwh.toFixed(1)}kWh/day (${shiftablePercentage}% of ${dailyUsage}kWh)`
+                });
             } else {
                 // Device-specific calculation
                 if (addedDevices.length === 0) {
@@ -1020,29 +1132,30 @@
                 addedDevices.forEach(item => {
                     const device = item.device;
                     let dailyKwh;
+                    let details;
 
                     if (device.type === 'cycle') {
                         // Cycle-based device (washer, dryer, dishwasher)
                         const frequency = item.usage.frequency;
                         const cycleEnergy = device.power * device.cycleTime;
                         dailyKwh = cycleEnergy * frequencyMap[frequency];
+                        const freqText = frequency === 'daily' ? 'Daily' : frequency.replace('perweek', 'x/week');
+                        details = `${freqText}, ${cycleEnergy.toFixed(2)}kWh per cycle`;
                     } else if (device.dailyKwh) {
                         // Continuous device with fixed daily consumption (fridge)
                         dailyKwh = device.dailyKwh;
+                        details = `Continuous, ${dailyKwh}kWh/day`;
                     } else {
                         // Continuous device with hourly power rating
                         dailyKwh = device.power * item.usage.hoursPerDay;
+                        details = `${item.usage.hoursPerDay}hrs/day, ${device.power}kW`;
                     }
 
                     totalDailyKwh += dailyKwh;
 
                     // Calculate individual device savings
-                    let deviceDailySavings;
-                    if (hasSolar === 'yes') {
-                        deviceDailySavings = dailyKwh * (tariff.peak / 100);
-                    } else {
-                        deviceDailySavings = dailyKwh * ((tariff.peak - tariff.solar) / 100);
-                    }
+                    const savingsPerKwh = (peakRate - solarRate) / 100;
+                    const deviceDailySavings = dailyKwh * savingsPerKwh;
 
                     deviceBreakdown.push({
                         name: device.name,
@@ -1050,30 +1163,25 @@
                         dailySavings: deviceDailySavings,
                         annualSavings: deviceDailySavings * 365
                     });
+
+                    deviceList.push({
+                        name: device.name,
+                        details: details
+                    });
                 });
 
                 // Calculate total savings
                 shiftableKwh = totalDailyKwh;
-                if (hasSolar === 'yes') {
-                    dailySavings = totalDailyKwh * (tariff.peak / 100);
-                    explanation = `
-                        <strong>How we calculated your savings for ${addedDevices.length} device${addedDevices.length > 1 ? 's' : ''}:</strong><br><br>
-                        Total daily energy consumption: <strong>${totalDailyKwh.toFixed(2)} kWh</strong><br><br>
-                        By shifting all these devices to solar hours (12pm-3pm), you use your own solar power instead of grid electricity at
-                        <strong>${tariff.peak}c/kWh</strong>.<br><br>
-                        Total savings: <strong>${tariff.peak}c/kWh × ${totalDailyKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
-                    `;
-                } else {
-                    const savingsPerKwh = (tariff.peak - tariff.solar) / 100;
-                    dailySavings = totalDailyKwh * savingsPerKwh;
-                    explanation = `
-                        <strong>How we calculated your savings for ${addedDevices.length} device${addedDevices.length > 1 ? 's' : ''}:</strong><br><br>
-                        Total daily energy consumption: <strong>${totalDailyKwh.toFixed(2)} kWh</strong><br><br>
-                        By shifting all these devices to solar hours (12pm-3pm), you benefit from lower grid rates
-                        (<strong>${tariff.solar}c/kWh</strong> vs <strong>${tariff.peak}c/kWh</strong>).<br><br>
-                        Total savings: <strong>${(savingsPerKwh * 100).toFixed(0)}c/kWh × ${totalDailyKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
-                    `;
-                }
+                const savingsPerKwh = (peakRate - solarRate) / 100;
+                dailySavings = totalDailyKwh * savingsPerKwh;
+
+                explanation = `
+                    <strong>How we calculated your savings for ${addedDevices.length} device${addedDevices.length > 1 ? 's' : ''}:</strong><br><br>
+                    Total daily energy consumption: <strong>${totalDailyKwh.toFixed(2)} kWh</strong><br><br>
+                    By shifting all these devices to solar hours (12pm-3pm) when rates are lower
+                    (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak):<br><br>
+                    Total savings: <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${totalDailyKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
+                `;
 
                 // Add device breakdown to explanation
                 explanation += `
@@ -1101,6 +1209,34 @@
             document.getElementById('explanation').innerHTML = explanation;
 
             document.getElementById('results').classList.add('show');
+
+            // Show AI recommendation section with loading state
+            const aiSection = document.getElementById('aiRecommendation');
+            const aiContent = document.getElementById('aiContent');
+            aiContent.innerHTML = '<div class="loading-spinner"></div> Getting personalized recommendation...';
+            aiSection.classList.add('show');
+
+            // Get AI recommendation
+            const savingsData = {
+                daily: dailySavings,
+                monthly: monthlySavings,
+                annual: annualSavings
+            };
+
+            const aiResult = await getAIRecommendation(deviceList, savingsData, state);
+
+            if (aiResult && aiResult.recommendation) {
+                aiContent.innerHTML = `
+                    <div>${aiResult.recommendation}</div>
+                    ${aiResult.roi_months ? `<div class="roi-badge">Pays for itself in ${aiResult.roi_months} months!</div>` : ''}
+                `;
+            } else {
+                aiContent.innerHTML = `
+                    <div>Great news! With annual savings of <strong>$${annualSavings.toFixed(2)}</strong>, our Power Monitoring Device (2-pack at $149.99) will pay for itself in just ${Math.ceil(149.99 / monthlySavings)} months!</div>
+                    <div class="roi-badge">Pays for itself in ${Math.ceil(149.99 / monthlySavings)} months!</div>
+                    <div style="margin-top: 15px;">Track your devices in real-time, get smart notifications for optimal shifting times, and maximize your savings with detailed usage reports.</div>
+                `;
+            }
 
             // Scroll to results
             document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
