@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Shifter - Calculate Your Power Savings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 20px;
+            opacity: 0.95;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 3px solid #fda085;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            border-color: #fda085;
+        }
+
+        .form-group input[type="number"] {
+            appearance: textfield;
+        }
+
+        .info-text {
+            font-size: 14px;
+            color: #777;
+            margin-top: 5px;
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(253, 160, 133, 0.4);
+        }
+
+        .results {
+            display: none;
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+        }
+
+        .results.show {
+            display: block;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .results h3 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .savings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .savings-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .savings-item .label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .savings-item .value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .explanation {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+
+        .product-section {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            margin-top: 30px;
+        }
+
+        .product-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .product-info h3 {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .product-info p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            opacity: 0.95;
+        }
+
+        .price {
+            font-size: 40px;
+            font-weight: 700;
+            margin: 20px 0;
+        }
+
+        .features {
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .features li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        .buy-btn {
+            display: inline-block;
+            padding: 18px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            background: white;
+            color: #11998e;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+
+        .buy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .product-image {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 32px;
+            }
+
+            .header p {
+                font-size: 16px;
+            }
+
+            .product-content {
+                grid-template-columns: 1fr;
+            }
+
+            .savings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .product-image {
+                order: -1;
+                font-size: 80px;
+                padding: 30px;
+            }
+        }
+
+        .tariff-info {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .tariff-info p {
+            color: #856404;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Solar Shifter</h1>
+            <p>Calculate How Much You Can Save by Shifting Power to Solar Hours (12pm - 3pm)</p>
+        </div>
+
+        <div class="main-content">
+            <div class="card">
+                <h2>Calculate Your Savings</h2>
+                <form id="calculatorForm">
+                    <div class="form-group">
+                        <label for="state">Select Your State</label>
+                        <select id="state" required>
+                            <option value="">Choose your state...</option>
+                            <option value="NSW">New South Wales</option>
+                            <option value="VIC">Victoria</option>
+                            <option value="QLD">Queensland</option>
+                            <option value="SA">South Australia</option>
+                            <option value="WA">Western Australia</option>
+                            <option value="TAS">Tasmania</option>
+                            <option value="NT">Northern Territory</option>
+                            <option value="ACT">Australian Capital Territory</option>
+                        </select>
+                    </div>
+
+                    <div id="tariffInfo" class="tariff-info" style="display: none;"></div>
+
+                    <div class="form-group">
+                        <label for="dailyUsage">Daily Electricity Usage (kWh)</label>
+                        <input type="number" id="dailyUsage" min="1" step="0.1" required placeholder="e.g., 20">
+                        <div class="info-text">Average Australian household uses 15-25 kWh per day</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shiftablePercentage">% of Usage You Can Shift to Solar Hours (12pm-3pm)</label>
+                        <input type="number" id="shiftablePercentage" min="0" max="100" step="5" value="30" required>
+                        <div class="info-text">Typical appliances: dishwasher, washing machine, dryer, pool pump, charging devices</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hasSolar">Do you have solar panels?</label>
+                        <select id="hasSolar" required>
+                            <option value="yes">Yes - I have solar panels</option>
+                            <option value="no">No - I don't have solar panels</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="calculate-btn">Calculate My Savings</button>
+                </form>
+
+                <div id="results" class="results">
+                    <h3>Your Potential Annual Savings</h3>
+                    <div class="savings-grid">
+                        <div class="savings-item">
+                            <div class="label">Annual Savings</div>
+                            <div class="value" id="annualSavings">$0</div>
+                        </div>
+                        <div class="savings-item">
+                            <div class="label">Monthly Savings</div>
+                            <div class="value" id="monthlySavings">$0</div>
+                        </div>
+                        <div class="savings-item">
+                            <div class="label">Daily Savings</div>
+                            <div class="value" id="dailySavings">$0</div>
+                        </div>
+                    </div>
+                    <div class="explanation" id="explanation"></div>
+                </div>
+            </div>
+
+            <div class="card product-section">
+                <div class="product-content">
+                    <div class="product-info">
+                        <h3>Power Monitoring Device - 2 Pack</h3>
+                        <p>Track your energy usage in real-time and identify the best times to shift your power consumption to solar hours.</p>
+
+                        <ul class="features">
+                            <li>Real-time energy monitoring</li>
+                            <li>Track usage by appliance</li>
+                            <li>Smart notifications for optimal shifting times</li>
+                            <li>Works with or without solar panels</li>
+                            <li>Easy setup - plug and play</li>
+                            <li>Mobile app included</li>
+                        </ul>
+
+                        <div class="price">$149.99</div>
+                        <p>Free shipping across Australia</p>
+
+                        <a href="#" class="buy-btn" onclick="alert('Product purchase coming soon! Email us at sales@solarshifter.com.au'); return false;">Buy Now</a>
+                    </div>
+                    <div class="product-image">
+                        ⚡📊
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Australian state electricity tariff data (approximate rates in cents per kWh)
+        const stateTariffs = {
+            NSW: {
+                peak: 35,
+                solar: 5,
+                feedIn: 8,
+                name: 'New South Wales'
+            },
+            VIC: {
+                peak: 32,
+                solar: 4,
+                feedIn: 6.7,
+                name: 'Victoria'
+            },
+            QLD: {
+                peak: 30,
+                solar: 4,
+                feedIn: 7,
+                name: 'Queensland'
+            },
+            SA: {
+                peak: 42,
+                solar: 5,
+                feedIn: 7.5,
+                name: 'South Australia'
+            },
+            WA: {
+                peak: 31,
+                solar: 4,
+                feedIn: 3,
+                name: 'Western Australia'
+            },
+            TAS: {
+                peak: 29,
+                solar: 4,
+                feedIn: 8.9,
+                name: 'Tasmania'
+            },
+            NT: {
+                peak: 28,
+                solar: 4,
+                feedIn: 8.3,
+                name: 'Northern Territory'
+            },
+            ACT: {
+                peak: 25,
+                solar: 4,
+                feedIn: 7,
+                name: 'Australian Capital Territory'
+            }
+        };
+
+        // Show tariff info when state is selected
+        document.getElementById('state').addEventListener('change', function() {
+            const state = this.value;
+            if (state && stateTariffs[state]) {
+                const tariff = stateTariffs[state];
+                const tariffInfo = document.getElementById('tariffInfo');
+                tariffInfo.innerHTML = `
+                    <p><strong>${tariff.name} Electricity Rates:</strong></p>
+                    <p>Peak rate: ${tariff.peak}c/kWh | Solar hours rate: ${tariff.solar}c/kWh | Solar feed-in: ${tariff.feedIn}c/kWh</p>
+                `;
+                tariffInfo.style.display = 'block';
+            }
+        });
+
+        document.getElementById('calculatorForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const state = document.getElementById('state').value;
+            const dailyUsage = parseFloat(document.getElementById('dailyUsage').value);
+            const shiftablePercentage = parseFloat(document.getElementById('shiftablePercentage').value);
+            const hasSolar = document.getElementById('hasSolar').value;
+
+            if (!state || !stateTariffs[state]) {
+                alert('Please select your state');
+                return;
+            }
+
+            const tariff = stateTariffs[state];
+
+            // Calculate shiftable energy per day
+            const shiftableKwh = dailyUsage * (shiftablePercentage / 100);
+
+            let dailySavings;
+            let explanation;
+
+            if (hasSolar === 'yes') {
+                // With solar: savings = avoiding peak rate AND getting feed-in credit
+                // During solar hours (12-3pm), you're using your own solar instead of grid
+                dailySavings = shiftableKwh * (tariff.peak / 100);
+
+                explanation = `
+                    <strong>How we calculated your savings:</strong><br><br>
+                    You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
+                    With solar panels, instead of buying electricity at <strong>${tariff.peak}c/kWh</strong> during peak times,
+                    you're using your own solar power during the day, saving the full grid cost.<br><br>
+                    This means you save <strong>${(tariff.peak)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.
+                `;
+            } else {
+                // Without solar: savings from lower daytime rates (solar hours have lower grid rates)
+                const savingsPerKwh = (tariff.peak - tariff.solar) / 100;
+                dailySavings = shiftableKwh * savingsPerKwh;
+
+                explanation = `
+                    <strong>How we calculated your savings:</strong><br><br>
+                    You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
+                    Without solar panels, you benefit from lower electricity rates during solar hours
+                    (<strong>${tariff.solar}c/kWh</strong>) compared to peak times (<strong>${tariff.peak}c/kWh</strong>).<br><br>
+                    This means you save <strong>${(savingsPerKwh * 100).toFixed(0)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.<br><br>
+                    <em>Tip: Consider installing solar panels to maximize your savings even further!</em>
+                `;
+            }
+
+            const monthlySavings = dailySavings * 30;
+            const annualSavings = dailySavings * 365;
+
+            // Display results
+            document.getElementById('dailySavings').textContent = `$${dailySavings.toFixed(2)}`;
+            document.getElementById('monthlySavings').textContent = `$${monthlySavings.toFixed(2)}`;
+            document.getElementById('annualSavings').textContent = `$${annualSavings.toFixed(2)}`;
+            document.getElementById('explanation').innerHTML = explanation;
+
+            document.getElementById('results').classList.add('show');
+
+            // Scroll to results
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    </script>
+</body>
+</html>
