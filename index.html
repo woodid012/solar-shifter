@@ -305,6 +305,53 @@
             font-size: 14px;
             margin: 5px 0;
         }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            background: #f5f5f5;
+            color: #666;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            color: white;
+            border-color: #fda085;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .device-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .device-info p {
+            color: #0d47a1;
+            font-size: 14px;
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -317,6 +364,12 @@
         <div class="main-content">
             <div class="card">
                 <h2>Calculate Your Savings</h2>
+
+                <div class="tab-buttons">
+                    <button type="button" class="tab-btn active" onclick="switchTab('general')">General Usage</button>
+                    <button type="button" class="tab-btn" onclick="switchTab('device')">Specific Device</button>
+                </div>
+
                 <form id="calculatorForm">
                     <div class="form-group">
                         <label for="state">Select Your State</label>
@@ -336,23 +389,71 @@
                     <div id="tariffInfo" class="tariff-info" style="display: none;"></div>
 
                     <div class="form-group">
-                        <label for="dailyUsage">Daily Electricity Usage (kWh)</label>
-                        <input type="number" id="dailyUsage" min="1" step="0.1" required placeholder="e.g., 20">
-                        <div class="info-text">Average Australian household uses 15-25 kWh per day</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="shiftablePercentage">% of Usage You Can Shift to Solar Hours (12pm-3pm)</label>
-                        <input type="number" id="shiftablePercentage" min="0" max="100" step="5" value="30" required>
-                        <div class="info-text">Typical appliances: dishwasher, washing machine, dryer, pool pump, charging devices</div>
-                    </div>
-
-                    <div class="form-group">
                         <label for="hasSolar">Do you have solar panels?</label>
                         <select id="hasSolar" required>
                             <option value="yes">Yes - I have solar panels</option>
                             <option value="no">No - I don't have solar panels</option>
                         </select>
+                    </div>
+
+                    <!-- General Usage Tab -->
+                    <div id="generalTab" class="tab-content active">
+                        <div class="form-group">
+                            <label for="dailyUsage">Daily Electricity Usage (kWh)</label>
+                            <input type="number" id="dailyUsage" min="1" step="0.1" placeholder="e.g., 20">
+                            <div class="info-text">Average Australian household uses 15-25 kWh per day</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shiftablePercentage">% of Usage You Can Shift to Solar Hours (12pm-3pm)</label>
+                            <input type="number" id="shiftablePercentage" min="0" max="100" step="5" value="30">
+                            <div class="info-text">Typical appliances: dishwasher, washing machine, dryer, pool pump, charging devices</div>
+                        </div>
+                    </div>
+
+                    <!-- Device Specific Tab -->
+                    <div id="deviceTab" class="tab-content">
+                        <div class="form-group">
+                            <label for="deviceCategory">Device Category</label>
+                            <select id="deviceCategory" onchange="updateDeviceList()">
+                                <option value="">Choose a category...</option>
+                                <option value="aircon">Air Conditioners</option>
+                                <option value="dryer">Clothes Dryers</option>
+                                <option value="washer">Washing Machines</option>
+                                <option value="dishwasher">Dishwashers</option>
+                                <option value="fridge">Fridges & Freezers</option>
+                                <option value="pool">Pool Pumps</option>
+                                <option value="tv">Televisions</option>
+                                <option value="monitor">Computer Monitors</option>
+                                <option value="heater">Electric Heaters</option>
+                                <option value="oven">Electric Ovens</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="deviceSelectGroup" style="display: none;">
+                            <label for="device">Select Device</label>
+                            <select id="device" onchange="updateDeviceInfo()">
+                                <option value="">Choose a device...</option>
+                            </select>
+                        </div>
+
+                        <div id="deviceInfo" class="device-info" style="display: none;"></div>
+
+                        <div class="form-group" id="usageFrequencyGroup" style="display: none;">
+                            <label for="usageFrequency">How often do you use this device?</label>
+                            <select id="usageFrequency">
+                                <option value="daily">Every day</option>
+                                <option value="5perweek">5 times per week</option>
+                                <option value="3perweek">3 times per week</option>
+                                <option value="weekly">Once per week</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="hoursPerDayGroup" style="display: none;">
+                            <label for="hoursPerDay">Hours per day currently used outside solar hours</label>
+                            <input type="number" id="hoursPerDay" min="0" max="24" step="0.5" value="3">
+                            <div class="info-text">How many hours per day do you run this device outside 12pm-3pm?</div>
+                        </div>
                     </div>
 
                     <button type="submit" class="calculate-btn">Calculate My Savings</button>
@@ -407,6 +508,150 @@
     </div>
 
     <script>
+        // Device database with energy consumption data
+        const deviceDatabase = {
+            aircon: [
+                { name: 'Small Split System (2.5kW)', power: 0.7, type: 'continuous', description: 'Cooling capacity 2.5kW, typical bedroom' },
+                { name: 'Medium Split System (5kW)', power: 1.5, type: 'continuous', description: 'Cooling capacity 5kW, typical living room' },
+                { name: 'Large Split System (7kW)', power: 2.1, type: 'continuous', description: 'Cooling capacity 7kW, large living area' },
+                { name: 'Ducted System (10kW)', power: 3.0, type: 'continuous', description: 'Whole house cooling' },
+                { name: 'Portable AC (2.5kW)', power: 1.0, type: 'continuous', description: 'Mobile air conditioner' }
+            ],
+            dryer: [
+                { name: 'Vented Dryer (6kg)', power: 2.5, type: 'cycle', cycleTime: 2.0, description: 'Standard vented dryer' },
+                { name: 'Condenser Dryer (7kg)', power: 2.2, type: 'cycle', cycleTime: 2.5, description: 'Condensing dryer' },
+                { name: 'Heat Pump Dryer (8kg)', power: 1.2, type: 'cycle', cycleTime: 2.5, description: 'Energy efficient heat pump' },
+                { name: 'Gas Dryer (7kg)', power: 0.5, type: 'cycle', cycleTime: 1.5, description: 'Gas powered with electric components' }
+            ],
+            washer: [
+                { name: 'Front Loader (7kg)', power: 0.8, type: 'cycle', cycleTime: 2.0, description: 'Standard front loading washer' },
+                { name: 'Front Loader (8-9kg)', power: 1.0, type: 'cycle', cycleTime: 2.5, description: 'Large capacity front loader' },
+                { name: 'Top Loader (7kg)', power: 0.6, type: 'cycle', cycleTime: 1.5, description: 'Standard top loader' },
+                { name: 'Top Loader (10kg)', power: 0.8, type: 'cycle', cycleTime: 2.0, description: 'Large capacity top loader' }
+            ],
+            dishwasher: [
+                { name: 'Standard Dishwasher', power: 1.5, type: 'cycle', cycleTime: 2.0, description: '12-14 place settings' },
+                { name: 'Eco Dishwasher', power: 0.9, type: 'cycle', cycleTime: 3.0, description: 'Energy efficient model' },
+                { name: 'Compact Dishwasher', power: 1.2, type: 'cycle', cycleTime: 1.5, description: '8-10 place settings' }
+            ],
+            fridge: [
+                { name: 'Small Fridge (200L)', power: 0.04, type: 'continuous', dailyKwh: 0.9, description: 'Single door, ~220kWh/year' },
+                { name: 'Medium Fridge (400L)', power: 0.06, type: 'continuous', dailyKwh: 1.5, description: 'Two door, ~550kWh/year' },
+                { name: 'Large Fridge (500L)', power: 0.08, type: 'continuous', dailyKwh: 2.0, description: 'Large two door, ~730kWh/year' },
+                { name: 'Fridge-Freezer (600L)', power: 0.10, type: 'continuous', dailyKwh: 2.4, description: 'Side-by-side, ~876kWh/year' }
+            ],
+            pool: [
+                { name: 'Single Speed Pump (1HP)', power: 0.75, type: 'continuous', description: 'Standard pool pump' },
+                { name: 'Single Speed Pump (1.5HP)', power: 1.1, type: 'continuous', description: 'Larger pool pump' },
+                { name: 'Variable Speed Pump', power: 0.4, type: 'continuous', description: 'Energy efficient variable speed' },
+                { name: 'Two Speed Pump', power: 0.85, type: 'continuous', description: 'Dual speed pump (high speed)' }
+            ],
+            tv: [
+                { name: '32" LED TV', power: 0.05, type: 'continuous', description: 'Small LED television' },
+                { name: '50" LED TV', power: 0.08, type: 'continuous', description: 'Medium LED television' },
+                { name: '65" LED TV', power: 0.12, type: 'continuous', description: 'Large LED television' },
+                { name: '65" OLED TV', power: 0.15, type: 'continuous', description: 'Large OLED television' }
+            ],
+            monitor: [
+                { name: '24" LCD Monitor', power: 0.025, type: 'continuous', description: 'Standard office monitor' },
+                { name: '27" LCD Monitor', power: 0.035, type: 'continuous', description: 'Large office monitor' },
+                { name: '32" 4K Monitor', power: 0.05, type: 'continuous', description: 'Ultra HD monitor' }
+            ],
+            heater: [
+                { name: 'Small Space Heater (1kW)', power: 1.0, type: 'continuous', description: 'Portable heater' },
+                { name: 'Medium Space Heater (2kW)', power: 2.0, type: 'continuous', description: 'Standard room heater' },
+                { name: 'Large Space Heater (2.4kW)', power: 2.4, type: 'continuous', description: 'Large room heater' },
+                { name: 'Oil Column Heater (2kW)', power: 2.0, type: 'continuous', description: 'Oil-filled radiator' }
+            ],
+            oven: [
+                { name: 'Electric Oven (Standard)', power: 2.4, type: 'continuous', description: 'Standard electric oven' },
+                { name: 'Electric Oven (Fan-forced)', power: 2.0, type: 'continuous', description: 'Fan-forced convection oven' },
+                { name: 'Cooktop (Single Element)', power: 1.8, type: 'continuous', description: 'Single electric hotplate' },
+                { name: 'Cooktop (Induction)', power: 2.0, type: 'continuous', description: 'Induction cooktop element' }
+            ]
+        };
+
+        let currentTab = 'general';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+
+            // Hide results when switching tabs
+            document.getElementById('results').classList.remove('show');
+        }
+
+        function updateDeviceList() {
+            const category = document.getElementById('deviceCategory').value;
+            const deviceSelect = document.getElementById('device');
+            const deviceSelectGroup = document.getElementById('deviceSelectGroup');
+
+            if (!category) {
+                deviceSelectGroup.style.display = 'none';
+                document.getElementById('deviceInfo').style.display = 'none';
+                document.getElementById('usageFrequencyGroup').style.display = 'none';
+                document.getElementById('hoursPerDayGroup').style.display = 'none';
+                return;
+            }
+
+            // Populate device list
+            deviceSelect.innerHTML = '<option value="">Choose a device...</option>';
+            deviceDatabase[category].forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = device.name;
+                deviceSelect.appendChild(option);
+            });
+
+            deviceSelectGroup.style.display = 'block';
+        }
+
+        function updateDeviceInfo() {
+            const category = document.getElementById('deviceCategory').value;
+            const deviceIndex = document.getElementById('device').value;
+
+            if (deviceIndex === '') {
+                document.getElementById('deviceInfo').style.display = 'none';
+                document.getElementById('usageFrequencyGroup').style.display = 'none';
+                document.getElementById('hoursPerDayGroup').style.display = 'none';
+                return;
+            }
+
+            const device = deviceDatabase[category][deviceIndex];
+            const deviceInfo = document.getElementById('deviceInfo');
+
+            let infoHtml = `<p><strong>${device.name}</strong></p>`;
+            infoHtml += `<p>${device.description}</p>`;
+            infoHtml += `<p>Power consumption: ${device.power}kW`;
+
+            if (device.type === 'cycle') {
+                infoHtml += ` | Cycle time: ${device.cycleTime} hours`;
+                infoHtml += ` | Energy per cycle: ${(device.power * device.cycleTime).toFixed(2)}kWh`;
+            } else if (device.dailyKwh) {
+                infoHtml += ` (avg) | Daily usage: ${device.dailyKwh}kWh`;
+            }
+
+            infoHtml += `</p>`;
+            deviceInfo.innerHTML = infoHtml;
+            deviceInfo.style.display = 'block';
+
+            // Show appropriate usage inputs
+            if (device.type === 'cycle') {
+                document.getElementById('usageFrequencyGroup').style.display = 'block';
+                document.getElementById('hoursPerDayGroup').style.display = 'none';
+            } else {
+                document.getElementById('usageFrequencyGroup').style.display = 'none';
+                document.getElementById('hoursPerDayGroup').style.display = 'block';
+            }
+        }
+
         // Australian state electricity tariff data (approximate rates in cents per kWh)
         const stateTariffs = {
             NSW: {
@@ -477,8 +722,6 @@
             e.preventDefault();
 
             const state = document.getElementById('state').value;
-            const dailyUsage = parseFloat(document.getElementById('dailyUsage').value);
-            const shiftablePercentage = parseFloat(document.getElementById('shiftablePercentage').value);
             const hasSolar = document.getElementById('hasSolar').value;
 
             if (!state || !stateTariffs[state]) {
@@ -487,38 +730,124 @@
             }
 
             const tariff = stateTariffs[state];
-
-            // Calculate shiftable energy per day
-            const shiftableKwh = dailyUsage * (shiftablePercentage / 100);
-
             let dailySavings;
             let explanation;
+            let shiftableKwh;
 
-            if (hasSolar === 'yes') {
-                // With solar: savings = avoiding peak rate AND getting feed-in credit
-                // During solar hours (12-3pm), you're using your own solar instead of grid
-                dailySavings = shiftableKwh * (tariff.peak / 100);
+            if (currentTab === 'general') {
+                // General usage calculation
+                const dailyUsage = parseFloat(document.getElementById('dailyUsage').value);
+                const shiftablePercentage = parseFloat(document.getElementById('shiftablePercentage').value);
 
-                explanation = `
-                    <strong>How we calculated your savings:</strong><br><br>
-                    You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
-                    With solar panels, instead of buying electricity at <strong>${tariff.peak}c/kWh</strong> during peak times,
-                    you're using your own solar power during the day, saving the full grid cost.<br><br>
-                    This means you save <strong>${(tariff.peak)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.
-                `;
+                if (!dailyUsage || !shiftablePercentage) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+
+                shiftableKwh = dailyUsage * (shiftablePercentage / 100);
+
+                if (hasSolar === 'yes') {
+                    dailySavings = shiftableKwh * (tariff.peak / 100);
+                    explanation = `
+                        <strong>How we calculated your savings:</strong><br><br>
+                        You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
+                        With solar panels, instead of buying electricity at <strong>${tariff.peak}c/kWh</strong> during peak times,
+                        you're using your own solar power during the day, saving the full grid cost.<br><br>
+                        This means you save <strong>${(tariff.peak)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.
+                    `;
+                } else {
+                    const savingsPerKwh = (tariff.peak - tariff.solar) / 100;
+                    dailySavings = shiftableKwh * savingsPerKwh;
+                    explanation = `
+                        <strong>How we calculated your savings:</strong><br><br>
+                        You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
+                        Without solar panels, you benefit from lower electricity rates during solar hours
+                        (<strong>${tariff.solar}c/kWh</strong>) compared to peak times (<strong>${tariff.peak}c/kWh</strong>).<br><br>
+                        This means you save <strong>${(savingsPerKwh * 100).toFixed(0)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.<br><br>
+                        <em>Tip: Consider installing solar panels to maximize your savings even further!</em>
+                    `;
+                }
             } else {
-                // Without solar: savings from lower daytime rates (solar hours have lower grid rates)
-                const savingsPerKwh = (tariff.peak - tariff.solar) / 100;
-                dailySavings = shiftableKwh * savingsPerKwh;
+                // Device-specific calculation
+                const category = document.getElementById('deviceCategory').value;
+                const deviceIndex = document.getElementById('device').value;
 
-                explanation = `
-                    <strong>How we calculated your savings:</strong><br><br>
-                    You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
-                    Without solar panels, you benefit from lower electricity rates during solar hours
-                    (<strong>${tariff.solar}c/kWh</strong>) compared to peak times (<strong>${tariff.peak}c/kWh</strong>).<br><br>
-                    This means you save <strong>${(savingsPerKwh * 100).toFixed(0)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.<br><br>
-                    <em>Tip: Consider installing solar panels to maximize your savings even further!</em>
-                `;
+                if (!category || deviceIndex === '') {
+                    alert('Please select a device');
+                    return;
+                }
+
+                const device = deviceDatabase[category][deviceIndex];
+                let dailyKwh;
+
+                if (device.type === 'cycle') {
+                    // Cycle-based device (washer, dryer, dishwasher)
+                    const frequency = document.getElementById('usageFrequency').value;
+                    const cycleEnergy = device.power * device.cycleTime;
+
+                    const frequencyMap = {
+                        'daily': 1,
+                        '5perweek': 5/7,
+                        '3perweek': 3/7,
+                        'weekly': 1/7
+                    };
+
+                    dailyKwh = cycleEnergy * frequencyMap[frequency];
+
+                    explanation = `
+                        <strong>How we calculated your savings for ${device.name}:</strong><br><br>
+                        Your device uses <strong>${cycleEnergy.toFixed(2)} kWh per cycle</strong>
+                        (${device.power}kW × ${device.cycleTime} hours).<br><br>
+                        Running it <strong>${frequency === 'daily' ? 'every day' : frequency.replace('perweek', ' times per week')}</strong>
+                        = <strong>${dailyKwh.toFixed(2)} kWh per day average</strong>.<br><br>
+                    `;
+
+                } else if (device.dailyKwh) {
+                    // Continuous device with fixed daily consumption (fridge)
+                    dailyKwh = device.dailyKwh;
+                    explanation = `
+                        <strong>How we calculated your savings for ${device.name}:</strong><br><br>
+                        This device runs continuously and uses approximately <strong>${dailyKwh} kWh per day</strong>.<br><br>
+                        <em>Note: Fridges run 24/7 and cannot be shifted to solar hours. However, with solar panels,
+                        a portion of this usage (during 12pm-3pm) will be covered by your solar generation.</em><br><br>
+                    `;
+                } else {
+                    // Continuous device with hourly power rating
+                    const hoursPerDay = parseFloat(document.getElementById('hoursPerDay').value);
+                    if (!hoursPerDay) {
+                        alert('Please enter hours per day');
+                        return;
+                    }
+
+                    dailyKwh = device.power * hoursPerDay;
+
+                    explanation = `
+                        <strong>How we calculated your savings for ${device.name}:</strong><br><br>
+                        Your device uses <strong>${device.power}kW</strong> and runs for
+                        <strong>${hoursPerDay} hours per day</strong> outside solar hours.<br><br>
+                        Total daily consumption: <strong>${dailyKwh.toFixed(2)} kWh</strong>.<br><br>
+                    `;
+                }
+
+                shiftableKwh = dailyKwh;
+
+                // Calculate savings based on shifting to solar hours
+                if (hasSolar === 'yes') {
+                    dailySavings = shiftableKwh * (tariff.peak / 100);
+                    explanation += `
+                        By shifting this usage to solar hours (12pm-3pm) where you use your own solar power instead of grid electricity at
+                        <strong>${tariff.peak}c/kWh</strong>, you save:<br>
+                        <strong>${tariff.peak}c/kWh × ${shiftableKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.
+                    `;
+                } else {
+                    const savingsPerKwh = (tariff.peak - tariff.solar) / 100;
+                    dailySavings = shiftableKwh * savingsPerKwh;
+                    explanation += `
+                        By shifting this usage to solar hours (12pm-3pm) where grid rates are lower
+                        (<strong>${tariff.solar}c/kWh</strong> vs <strong>${tariff.peak}c/kWh</strong>), you save:<br>
+                        <strong>${(savingsPerKwh * 100).toFixed(0)}c/kWh × ${shiftableKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>.
+                    `;
+                }
             }
 
             const monthlySavings = dailySavings * 30;
