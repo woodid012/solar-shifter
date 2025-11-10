@@ -19,17 +19,34 @@ The calculator uses state-specific electricity tariffs to show you how much you 
 
 ## Getting Started
 
-1. Install dependencies (none required for basic setup)
+1. Install dependencies
 ```bash
 npm install
 ```
 
-2. Run the development server
+2. Set up environment variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Anthropic AI API Key for personalized recommendations
+ANTHROPIC_API_KEY=sk-ant-api-xxx
+
+# Stripe API Keys for payment processing
+STRIPE_SECRET_KEY=sk_test_xxx  # Use sk_live_xxx for production
+STRIPE_PUBLISHABLE_KEY=pk_test_xxx  # Use pk_live_xxx for production
+```
+
+Get your API keys:
+- **Anthropic**: https://console.anthropic.com/
+- **Stripe**: https://dashboard.stripe.com/apikeys
+
+3. Run the development server
 ```bash
 npm run dev
 ```
 
-3. Open your browser to `http://localhost:3000`
+4. Open your browser to `http://localhost:3000`
 
 ## State Tariff Data
 
@@ -43,7 +60,7 @@ The calculator includes approximate tariff rates for:
 - Northern Territory (NT)
 - Australian Capital Territory (ACT)
 
-## Product
+## Product & Payment
 
 Power Monitoring Device - 2 Pack ($149.99)
 - Real-time energy monitoring
@@ -52,6 +69,13 @@ Power Monitoring Device - 2 Pack ($149.99)
 - Works with or without solar panels
 - Easy plug-and-play setup
 - Mobile app included
+
+**Payment Processing:**
+- Integrated with Stripe for secure payments
+- Supports all major credit/debit cards
+- Australia-only shipping (validated at checkout)
+- Automatic order confirmation emails
+- Success page with order tracking
 
 ## Deployment
 

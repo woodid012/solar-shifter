@@ -695,9 +695,9 @@
                     <div class="content" id="aiContent">
                         <div class="loading-spinner"></div> Getting personalized recommendation...
                     </div>
-                    <a href="#" class="buy-now-btn" onclick="alert('Product purchase coming soon! Email us at sales@solarshifter.com.au'); return false;">
+                    <button class="buy-now-btn" onclick="handleCheckout()" id="buyNowBtn1">
                         Buy Power Monitor - $149.99
-                    </a>
+                    </button>
                 </div>
             </div>
 
@@ -719,7 +719,7 @@
                         <div class="price">$149.99</div>
                         <p>Free shipping across Australia</p>
 
-                        <a href="#" class="buy-btn" onclick="alert('Product purchase coming soon! Email us at sales@solarshifter.com.au'); return false;">Buy Now</a>
+                        <button class="buy-btn" onclick="handleCheckout()" id="buyNowBtn2">Buy Now</button>
                     </div>
                     <div class="product-image">
                         ⚡📊
@@ -1277,6 +1277,65 @@
             // Scroll to results
             document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+
+        // Stripe Checkout
+        async function handleCheckout() {
+            // Disable buy buttons and show loading state
+            const btn1 = document.getElementById('buyNowBtn1');
+            const btn2 = document.getElementById('buyNowBtn2');
+            const originalText1 = btn1.textContent;
+            const originalText2 = btn2.textContent;
+
+            btn1.disabled = true;
+            btn2.disabled = true;
+            btn1.textContent = 'Processing...';
+            btn2.textContent = 'Processing...';
+            btn1.style.opacity = '0.6';
+            btn2.style.opacity = '0.6';
+
+            try {
+                const response = await fetch('/api/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        quantity: 1
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create checkout session');
+                }
+
+                const { url } = await response.json();
+
+                // Redirect to Stripe Checkout
+                window.location.href = url;
+
+            } catch (error) {
+                console.error('Checkout Error:', error);
+                alert('Unable to process checkout. Please try again or contact support at sales@solarshifter.com.au');
+
+                // Re-enable buttons
+                btn1.disabled = false;
+                btn2.disabled = false;
+                btn1.textContent = originalText1;
+                btn2.textContent = originalText2;
+                btn1.style.opacity = '1';
+                btn2.style.opacity = '1';
+            }
+        }
+
+        // Check for canceled checkout
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('canceled') === 'true') {
+                alert('Checkout was canceled. Feel free to try again when you\'re ready!');
+                // Remove the parameter from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
     </script>
 </body>
 </html>
