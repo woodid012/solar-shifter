@@ -24,6 +24,14 @@ module.exports = async (req, res) => {
         // Get the domain for success/cancel URLs
         const domain = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://solar-shifter.vercel.app';
 
+        // Pricing based on quantity
+        const pricing = {
+            1: { amount: 2500, name: 'Power Monitoring Device - 1 Pack' },
+            2: { amount: 4050, name: 'Power Monitoring Device - 2 Pack' }
+        };
+
+        const selectedPrice = pricing[quantity] || pricing[1];
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
@@ -31,13 +39,13 @@ module.exports = async (req, res) => {
                     price_data: {
                         currency: 'aud',
                         product_data: {
-                            name: 'Power Monitoring Device - 2 Pack',
+                            name: selectedPrice.name,
                             description: 'Track energy usage in real-time, get smart notifications for optimal shifting times, and maximize your savings with detailed usage reports.',
-                            images: ['https://solar-shifter.vercel.app/og-image.png'], // You can add a product image later
+                            images: ['https://solar-shifter.vercel.app/og-image.png'],
                         },
-                        unit_amount: 14999, // $149.99 in cents
+                        unit_amount: selectedPrice.amount,
                     },
-                    quantity: quantity,
+                    quantity: 1, // Always 1 since we handle quantity in the price
                 },
             ],
             mode: 'payment',

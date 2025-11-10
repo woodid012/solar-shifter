@@ -695,8 +695,21 @@
                     <div class="content" id="aiContent">
                         <div class="loading-spinner"></div> Getting personalized recommendation...
                     </div>
-                    <button class="buy-now-btn" onclick="handleCheckout()" id="buyNowBtn1">
-                        Buy Power Monitor - $149.99
+
+                    <div style="margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 10px;">
+                        <div style="margin-bottom: 10px; font-weight: 600;">Select Quantity:</div>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="radio" name="quantity1" value="1" style="margin-right: 8px;">
+                            <strong>1 Pack</strong> - $25.00
+                        </label>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="radio" name="quantity1" value="2" checked style="margin-right: 8px;">
+                            <strong>2 Pack</strong> - $40.50 <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">BEST VALUE</span>
+                        </label>
+                    </div>
+
+                    <button class="buy-now-btn" onclick="handleCheckout(1)" id="buyNowBtn1">
+                        Buy Now
                     </button>
                 </div>
             </div>
@@ -704,7 +717,7 @@
             <div class="card product-section">
                 <div class="product-content">
                     <div class="product-info">
-                        <h3>Power Monitoring Device - 2 Pack</h3>
+                        <h3>Power Monitoring Device</h3>
                         <p>Track your energy usage in real-time and identify the best times to shift your power consumption to solar hours.</p>
 
                         <ul class="features">
@@ -716,10 +729,22 @@
                             <li>Mobile app included</li>
                         </ul>
 
-                        <div class="price">$149.99</div>
-                        <p>Free shipping across Australia</p>
+                        <div style="margin: 25px 0; padding: 20px; background: #f0f9ff; border-radius: 10px; border: 2px solid #38ef7d;">
+                            <div style="margin-bottom: 15px; font-weight: 600; color: #11998e; font-size: 18px;">Choose Your Pack:</div>
+                            <label style="display: block; margin: 12px 0; cursor: pointer; padding: 12px; background: white; border-radius: 8px; border: 2px solid #e5e7eb;">
+                                <input type="radio" name="quantity2" value="1" style="margin-right: 10px;">
+                                <strong style="color: #11998e;">1 Pack</strong> - <span style="font-size: 20px; font-weight: 700; color: #11998e;">$25.00</span>
+                            </label>
+                            <label style="display: block; margin: 12px 0; cursor: pointer; padding: 12px; background: white; border-radius: 8px; border: 2px solid #38ef7d;">
+                                <input type="radio" name="quantity2" value="2" checked style="margin-right: 10px;">
+                                <strong style="color: #11998e;">2 Pack</strong> - <span style="font-size: 20px; font-weight: 700; color: #11998e;">$40.50</span>
+                                <span style="background: #f59e0b; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; margin-left: 10px;">SAVE $9.50</span>
+                            </label>
+                        </div>
 
-                        <button class="buy-btn" onclick="handleCheckout()" id="buyNowBtn2">Buy Now</button>
+                        <p style="color: #11998e; font-weight: 600;">Free shipping across Australia</p>
+
+                        <button class="buy-btn" onclick="handleCheckout(2)" id="buyNowBtn2">Buy Now</button>
                     </div>
                     <div class="product-image">
                         ⚡📊
@@ -1267,9 +1292,14 @@
                     ${aiResult.roi_months ? `<div class="roi-badge">Pays for itself in ${aiResult.roi_months} months!</div>` : ''}
                 `;
             } else {
+                const roi1Pack = Math.ceil(25 / monthlySavings);
+                const roi2Pack = Math.ceil(40.50 / monthlySavings);
                 aiContent.innerHTML = `
-                    <div>Great news! With annual savings of <strong>$${annualSavings.toFixed(2)}</strong>, our Power Monitoring Device (2-pack at $149.99) will pay for itself in just ${Math.ceil(149.99 / monthlySavings)} months!</div>
-                    <div class="roi-badge">Pays for itself in ${Math.ceil(149.99 / monthlySavings)} months!</div>
+                    <div>Great news! With annual savings of <strong>$${annualSavings.toFixed(2)}</strong>, our Power Monitoring Device will pay for itself quickly:</div>
+                    <div style="margin: 15px 0; padding: 12px; background: rgba(255,255,255,0.15); border-radius: 8px;">
+                        <div><strong>1 Pack ($25)</strong> - Pays for itself in ${roi1Pack} month${roi1Pack > 1 ? 's' : ''}!</div>
+                        <div style="margin-top: 8px;"><strong>2 Pack ($40.50)</strong> - Pays for itself in ${roi2Pack} month${roi2Pack > 1 ? 's' : ''}!</div>
+                    </div>
                     <div style="margin-top: 15px;">Track your devices in real-time, get smart notifications for optimal shifting times, and maximize your savings with detailed usage reports.</div>
                 `;
             }
@@ -1279,7 +1309,12 @@
         }
 
         // Stripe Checkout
-        async function handleCheckout() {
+        async function handleCheckout(section) {
+            // Get selected quantity from the appropriate radio button group
+            const radioName = section === 1 ? 'quantity1' : 'quantity2';
+            const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
+            const quantity = selectedRadio ? parseInt(selectedRadio.value) : 2; // Default to 2-pack
+
             // Disable buy buttons and show loading state
             const btn1 = document.getElementById('buyNowBtn1');
             const btn2 = document.getElementById('buyNowBtn2');
@@ -1300,7 +1335,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        quantity: 1
+                        quantity: quantity
                     })
                 });
 
