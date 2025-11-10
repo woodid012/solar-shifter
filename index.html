@@ -660,9 +660,13 @@
                             <div id="deviceList"></div>
                             <button type="button" class="clear-all-btn" onclick="clearAllDevices()">Clear All</button>
                         </div>
+
+                        <button type="button" class="calculate-btn" id="calculateDevicesBtn" onclick="calculateDeviceSavings()" style="display: none; margin-top: 20px;">
+                            Calculate My Savings
+                        </button>
                     </div>
 
-                    <button type="submit" class="calculate-btn">Calculate My Savings</button>
+                    <button type="submit" class="calculate-btn" id="calculateGeneralBtn">Calculate My Savings</button>
                 </form>
 
                 <div id="results" class="results">
@@ -804,8 +808,21 @@
             event.target.classList.add('active');
             document.getElementById(tab + 'Tab').classList.add('active');
 
+            // Show/hide appropriate calculate button
+            if (tab === 'general') {
+                document.getElementById('calculateGeneralBtn').style.display = 'block';
+                document.getElementById('calculateDevicesBtn').style.display = 'none';
+            } else {
+                document.getElementById('calculateGeneralBtn').style.display = 'none';
+                // Only show device calculate button if devices added
+                if (addedDevices.length > 0) {
+                    document.getElementById('calculateDevicesBtn').style.display = 'block';
+                }
+            }
+
             // Hide results when switching tabs
             document.getElementById('results').classList.remove('show');
+            document.getElementById('aiRecommendation').classList.remove('show');
         }
 
         function updateDeviceList() {
@@ -818,19 +835,29 @@
                 document.getElementById('deviceInfo').style.display = 'none';
                 document.getElementById('usageFrequencyGroup').style.display = 'none';
                 document.getElementById('hoursPerDayGroup').style.display = 'none';
+                document.getElementById('addDeviceBtn').style.display = 'none';
                 return;
             }
 
             // Populate device list
             deviceSelect.innerHTML = '<option value="">Choose a device...</option>';
-            deviceDatabase[category].forEach((device, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = device.name;
-                deviceSelect.appendChild(option);
-            });
+            if (deviceDatabase[category]) {
+                deviceDatabase[category].forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = device.name;
+                    deviceSelect.appendChild(option);
+                });
+            }
 
+            // Show device select dropdown
             deviceSelectGroup.style.display = 'block';
+
+            // Hide other fields until device is selected
+            document.getElementById('deviceInfo').style.display = 'none';
+            document.getElementById('usageFrequencyGroup').style.display = 'none';
+            document.getElementById('hoursPerDayGroup').style.display = 'none';
+            document.getElementById('addDeviceBtn').style.display = 'none';
         }
 
         function updateDeviceInfo() {
@@ -906,7 +933,7 @@
                 usage: usageInfo
             });
 
-            updateDeviceList();
+            updateAddedDevicesList();
             resetDeviceForm();
         }
 
@@ -920,17 +947,20 @@
             document.getElementById('addDeviceBtn').style.display = 'none';
         }
 
-        function updateDeviceList() {
+        function updateAddedDevicesList() {
             const deviceListEl = document.getElementById('deviceList');
             const addedDevicesEl = document.getElementById('addedDevices');
             const deviceCountEl = document.getElementById('deviceCount');
+            const calculateBtn = document.getElementById('calculateDevicesBtn');
 
             if (addedDevices.length === 0) {
                 addedDevicesEl.classList.remove('show');
+                calculateBtn.style.display = 'none';
                 return;
             }
 
             addedDevicesEl.classList.add('show');
+            calculateBtn.style.display = 'block';
             deviceCountEl.textContent = addedDevices.length;
 
             deviceListEl.innerHTML = '';
@@ -963,13 +993,13 @@
 
         function removeDevice(index) {
             addedDevices.splice(index, 1);
-            updateDeviceList();
+            updateAddedDevicesList();
         }
 
         function clearAllDevices() {
             if (confirm('Clear all devices from the list?')) {
                 addedDevices = [];
-                updateDeviceList();
+                updateAddedDevicesList();
             }
         }
 
@@ -1063,8 +1093,105 @@
             }
         }
 
+        async function calculateDeviceSavings() {
+            const state = document.getElementById('state').value;
+            const peakRate = parseFloat(document.getElementById('peakRate').value);
+            const solarRate = parseFloat(document.getElementById('solarRate').value);
+
+            if (!state) {
+                alert('Please select your state');
+                return;
+            }
+
+            if (!peakRate || !solarRate) {
+                alert('Please check your tariff rates');
+                return;
+            }
+
+            if (addedDevices.length === 0) {
+                alert('Please add at least one device to calculate savings');
+                return;
+            }
+
+            // Calculate total savings across all devices
+            let totalDailyKwh = 0;
+            let deviceBreakdown = [];
+            let deviceList = [];
+
+            const frequencyMap = {
+                'daily': 1,
+                '5perweek': 5/7,
+                '3perweek': 3/7,
+                'weekly': 1/7
+            };
+
+            addedDevices.forEach(item => {
+                const device = item.device;
+                let dailyKwh;
+                let details;
+
+                if (device.type === 'cycle') {
+                    const frequency = item.usage.frequency;
+                    const cycleEnergy = device.power * device.cycleTime;
+                    dailyKwh = cycleEnergy * frequencyMap[frequency];
+                    const freqText = frequency === 'daily' ? 'Daily' : frequency.replace('perweek', 'x/week');
+                    details = `${freqText}, ${cycleEnergy.toFixed(2)}kWh per cycle`;
+                } else if (device.dailyKwh) {
+                    dailyKwh = device.dailyKwh;
+                    details = `Continuous, ${dailyKwh}kWh/day`;
+                } else {
+                    dailyKwh = device.power * item.usage.hoursPerDay;
+                    details = `${item.usage.hoursPerDay}hrs/day, ${device.power}kW`;
+                }
+
+                totalDailyKwh += dailyKwh;
+
+                const savingsPerKwh = (peakRate - solarRate) / 100;
+                const deviceDailySavings = dailyKwh * savingsPerKwh;
+
+                deviceBreakdown.push({
+                    name: device.name,
+                    dailyKwh: dailyKwh,
+                    dailySavings: deviceDailySavings,
+                    annualSavings: deviceDailySavings * 365
+                });
+
+                deviceList.push({
+                    name: device.name,
+                    details: details
+                });
+            });
+
+            const savingsPerKwh = (peakRate - solarRate) / 100;
+            const dailySavings = totalDailyKwh * savingsPerKwh;
+
+            const explanation = `
+                <strong>How we calculated your savings for ${addedDevices.length} device${addedDevices.length > 1 ? 's' : ''}:</strong><br><br>
+                Total daily energy consumption: <strong>${totalDailyKwh.toFixed(2)} kWh</strong><br><br>
+                By shifting all these devices to solar hours (12pm-3pm) when rates are lower
+                (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak):<br><br>
+                Total savings: <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${totalDailyKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
+                <div class="device-breakdown">
+                    <h4>Breakdown by Device:</h4>
+                    ${deviceBreakdown.map(d => `
+                        <div class="breakdown-item">
+                            <span>${d.name}</span>
+                            <span>$${d.annualSavings.toFixed(2)}/year</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            displayResults(dailySavings, explanation, deviceList, state);
+        }
+
         document.getElementById('calculatorForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            // Only process if on general tab
+            if (currentTab !== 'general') {
+                return;
+            }
 
             const state = document.getElementById('state').value;
             const peakRate = parseFloat(document.getElementById('peakRate').value);
@@ -1080,125 +1207,36 @@
                 return;
             }
 
-            let dailySavings;
-            let explanation;
-            let shiftableKwh;
-            let deviceList = [];
+            // General usage calculation
+            const dailyUsage = parseFloat(document.getElementById('dailyUsage').value);
+            const shiftablePercentage = parseFloat(document.getElementById('shiftablePercentage').value);
 
-            if (currentTab === 'general') {
-                // General usage calculation
-                const dailyUsage = parseFloat(document.getElementById('dailyUsage').value);
-                const shiftablePercentage = parseFloat(document.getElementById('shiftablePercentage').value);
-
-                if (!dailyUsage || !shiftablePercentage) {
-                    alert('Please fill in all fields');
-                    return;
-                }
-
-                shiftableKwh = dailyUsage * (shiftablePercentage / 100);
-                const savingsPerKwh = (peakRate - solarRate) / 100;
-                dailySavings = shiftableKwh * savingsPerKwh;
-
-                explanation = `
-                    <strong>How we calculated your savings:</strong><br><br>
-                    You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
-                    By using electricity during solar hours when rates are lower
-                    (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak), you save:<br><br>
-                    <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
-                `;
-
-                deviceList.push({
-                    name: 'General household usage',
-                    details: `${shiftableKwh.toFixed(1)}kWh/day (${shiftablePercentage}% of ${dailyUsage}kWh)`
-                });
-            } else {
-                // Device-specific calculation
-                if (addedDevices.length === 0) {
-                    alert('Please add at least one device to calculate savings');
-                    return;
-                }
-
-                // Calculate total savings across all devices
-                let totalDailyKwh = 0;
-                let deviceBreakdown = [];
-
-                const frequencyMap = {
-                    'daily': 1,
-                    '5perweek': 5/7,
-                    '3perweek': 3/7,
-                    'weekly': 1/7
-                };
-
-                addedDevices.forEach(item => {
-                    const device = item.device;
-                    let dailyKwh;
-                    let details;
-
-                    if (device.type === 'cycle') {
-                        // Cycle-based device (washer, dryer, dishwasher)
-                        const frequency = item.usage.frequency;
-                        const cycleEnergy = device.power * device.cycleTime;
-                        dailyKwh = cycleEnergy * frequencyMap[frequency];
-                        const freqText = frequency === 'daily' ? 'Daily' : frequency.replace('perweek', 'x/week');
-                        details = `${freqText}, ${cycleEnergy.toFixed(2)}kWh per cycle`;
-                    } else if (device.dailyKwh) {
-                        // Continuous device with fixed daily consumption (fridge)
-                        dailyKwh = device.dailyKwh;
-                        details = `Continuous, ${dailyKwh}kWh/day`;
-                    } else {
-                        // Continuous device with hourly power rating
-                        dailyKwh = device.power * item.usage.hoursPerDay;
-                        details = `${item.usage.hoursPerDay}hrs/day, ${device.power}kW`;
-                    }
-
-                    totalDailyKwh += dailyKwh;
-
-                    // Calculate individual device savings
-                    const savingsPerKwh = (peakRate - solarRate) / 100;
-                    const deviceDailySavings = dailyKwh * savingsPerKwh;
-
-                    deviceBreakdown.push({
-                        name: device.name,
-                        dailyKwh: dailyKwh,
-                        dailySavings: deviceDailySavings,
-                        annualSavings: deviceDailySavings * 365
-                    });
-
-                    deviceList.push({
-                        name: device.name,
-                        details: details
-                    });
-                });
-
-                // Calculate total savings
-                shiftableKwh = totalDailyKwh;
-                const savingsPerKwh = (peakRate - solarRate) / 100;
-                dailySavings = totalDailyKwh * savingsPerKwh;
-
-                explanation = `
-                    <strong>How we calculated your savings for ${addedDevices.length} device${addedDevices.length > 1 ? 's' : ''}:</strong><br><br>
-                    Total daily energy consumption: <strong>${totalDailyKwh.toFixed(2)} kWh</strong><br><br>
-                    By shifting all these devices to solar hours (12pm-3pm) when rates are lower
-                    (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak):<br><br>
-                    Total savings: <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${totalDailyKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
-                `;
-
-                // Add device breakdown to explanation
-                explanation += `
-                    <div class="device-breakdown">
-                        <h4>Breakdown by Device:</h4>
-                `;
-                deviceBreakdown.forEach(d => {
-                    explanation += `
-                        <div class="breakdown-item">
-                            <span>${d.name}</span>
-                            <span>$${d.annualSavings.toFixed(2)}/year</span>
-                        </div>
-                    `;
-                });
-                explanation += `</div>`;
+            if (!dailyUsage || !shiftablePercentage) {
+                alert('Please fill in all fields');
+                return;
             }
 
+            const shiftableKwh = dailyUsage * (shiftablePercentage / 100);
+            const savingsPerKwh = (peakRate - solarRate) / 100;
+            const dailySavings = shiftableKwh * savingsPerKwh;
+
+            const explanation = `
+                <strong>How we calculated your savings:</strong><br><br>
+                You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
+                By using electricity during solar hours when rates are lower
+                (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak), you save:<br><br>
+                <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
+            `;
+
+            const deviceList = [{
+                name: 'General household usage',
+                details: `${shiftableKwh.toFixed(1)}kWh/day (${shiftablePercentage}% of ${dailyUsage}kWh)`
+            }];
+
+            displayResults(dailySavings, explanation, deviceList, state);
+        });
+
+        async function displayResults(dailySavings, explanation, deviceList, state) {
             const monthlySavings = dailySavings * 30;
             const annualSavings = dailySavings * 365;
 
@@ -1240,7 +1278,7 @@
 
             // Scroll to results
             document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        });
+        }
     </script>
 </body>
 </html>
