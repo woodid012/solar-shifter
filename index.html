@@ -579,17 +579,16 @@
 
                     <div id="tariffInfo" class="tariff-info" style="display: none;">
                         <p><strong><span id="stateName"></span> Electricity Rates:</strong></p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                        <div style="margin-top: 10px;">
                             <div>
                                 <label for="peakRate" style="font-size: 13px; color: #856404; display: block; margin-bottom: 5px;">Peak Rate (c/kWh)</label>
                                 <input type="number" id="peakRate" step="0.1" min="0" style="width: 100%; padding: 8px; border: 2px solid #ffc107; border-radius: 6px; font-size: 14px;">
                             </div>
-                            <div>
-                                <label for="solarRate" style="font-size: 13px; color: #856404; display: block; margin-bottom: 5px;">Solar Hours Rate (c/kWh)</label>
-                                <input type="number" id="solarRate" step="0.1" min="0" style="width: 100%; padding: 8px; border: 2px solid #ffc107; border-radius: 6px; font-size: 14px;">
-                            </div>
                         </div>
-                        <p style="font-size: 12px; margin-top: 8px; opacity: 0.8;">You can adjust these rates to match your electricity plan</p>
+                        <p style="font-size: 12px; margin-top: 12px; opacity: 0.9; color: #0d47a1; background: #e3f2fd; padding: 10px; border-radius: 6px; border-left: 3px solid #2196f3;">
+                            <strong>Solar Sharer Scheme:</strong> Power during solar hours (12pm-3pm) is FREE ($0/kWh) when you shift usage to these times
+                        </p>
+                        <p style="font-size: 12px; margin-top: 8px; opacity: 0.8;">You can adjust the peak rate to match your electricity plan</p>
                     </div>
 
                     <!-- General Usage Tab -->
@@ -1062,7 +1061,6 @@
                 const tariff = stateTariffs[state];
                 document.getElementById('stateName').textContent = tariff.name;
                 document.getElementById('peakRate').value = tariff.peak;
-                document.getElementById('solarRate').value = tariff.solar;
                 document.getElementById('tariffInfo').style.display = 'block';
             }
         });
@@ -1096,15 +1094,15 @@
         async function calculateDeviceSavings() {
             const state = document.getElementById('state').value;
             const peakRate = parseFloat(document.getElementById('peakRate').value);
-            const solarRate = parseFloat(document.getElementById('solarRate').value);
+            const solarRate = 0; // Solar Sharer Scheme - FREE during solar hours
 
             if (!state) {
                 alert('Please select your state');
                 return;
             }
 
-            if (!peakRate || !solarRate) {
-                alert('Please check your tariff rates');
+            if (!peakRate) {
+                alert('Please check your peak tariff rate');
                 return;
             }
 
@@ -1168,9 +1166,9 @@
             const explanation = `
                 <strong>How we calculated your savings for ${addedDevices.length} device${addedDevices.length > 1 ? 's' : ''}:</strong><br><br>
                 Total daily energy consumption: <strong>${totalDailyKwh.toFixed(2)} kWh</strong><br><br>
-                By shifting all these devices to solar hours (12pm-3pm) when rates are lower
-                (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak):<br><br>
-                Total savings: <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${totalDailyKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
+                By shifting all these devices to solar hours (12pm-3pm) when power is <strong>FREE</strong> (Solar Sharer Scheme)
+                vs paying <strong>${peakRate}c/kWh</strong> at peak times:<br><br>
+                Total savings: <strong>${peakRate}c/kWh × ${totalDailyKwh.toFixed(2)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
                 <div class="device-breakdown">
                     <h4>Breakdown by Device:</h4>
                     ${deviceBreakdown.map(d => `
@@ -1195,15 +1193,15 @@
 
             const state = document.getElementById('state').value;
             const peakRate = parseFloat(document.getElementById('peakRate').value);
-            const solarRate = parseFloat(document.getElementById('solarRate').value);
+            const solarRate = 0; // Solar Sharer Scheme - FREE during solar hours
 
             if (!state) {
                 alert('Please select your state');
                 return;
             }
 
-            if (!peakRate || !solarRate) {
-                alert('Please check your tariff rates');
+            if (!peakRate) {
+                alert('Please check your peak tariff rate');
                 return;
             }
 
@@ -1223,9 +1221,9 @@
             const explanation = `
                 <strong>How we calculated your savings:</strong><br><br>
                 You're shifting <strong>${shiftableKwh.toFixed(1)} kWh</strong> per day to solar hours (12pm-3pm).<br><br>
-                By using electricity during solar hours when rates are lower
-                (<strong>${solarRate}c/kWh</strong> vs <strong>${peakRate}c/kWh</strong> peak), you save:<br><br>
-                <strong>${(savingsPerKwh * 100).toFixed(1)}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
+                By using electricity during solar hours when power is <strong>FREE</strong> (Solar Sharer Scheme)
+                vs paying <strong>${peakRate}c/kWh</strong> at peak times, you save:<br><br>
+                <strong>${peakRate}c/kWh × ${shiftableKwh.toFixed(1)} kWh = ${(dailySavings * 100).toFixed(0)}c per day</strong>
             `;
 
             const deviceList = [{
